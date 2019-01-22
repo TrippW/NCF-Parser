@@ -61,18 +61,17 @@ class NCFParser:
         """utility function to find the brackets for a term in text"""
         if not text:
             text = self.all_text
-        #add len of term since we know what we asked for and add 2 for
-        #the space and brace
+        #add len of term since we know what we asked for and add 1 for the space
         start = text.find(term+' {')+len(term)+1
         if start == len(term):
             start = text.find(term+'{')+len(term)
         if start == len(term)-1:
             raise Exception('Term not found')
         end = temp = start
-        while text[start:end].count('{') != text[:end].count('}') or start == end:
+        while text[start:end].count('{') > text[start:end].count('}') or start == end:
             temp = end+1
-            end = text.find('}', temp)
-            if(end == -1) or (end == len(text)):
+            end = text.find('}', temp)+1
+            if(end == 0) or (end == len(text)):
                 break
         return (start+1, end-1)
 
@@ -133,7 +132,7 @@ class NCFParser:
             if sub_start != -1:
                 #process it if there are any
                 sub_name = frame_text[sub_start:].split(' ')[1]
-                sub_start, sub_end = self._find_ends('subscribe '+sub_name)
+                sub_start, sub_end = self._find_ends('subscribe '+sub_name, frame_text[sub_end+1:])
                 data = frame_text[sub_start:sub_end]
                 self.frames['subscribe'][sub_name] = self._parse_frame(data)
 
@@ -149,9 +148,11 @@ class NCFParser:
         raw['ID'] = frame[frame.find('message_ID'):].split(';')[0].split('=')[1].replace(' ', '')
         raw['len'] = frame[frame.find('length'):].split(';')[0].split('=')[1].replace(' ', '')
         raw['signals'] = {}
-        signals = frame[slice(*self._find_ends('signals', frame))]
+        signal_start, signal_end = self._find_ends('signals', frame)
+        #add 1 to start to ignore the opening {
+        signals = frame[signal_start:signal_end]
         while '{' in signals:
-            signal_name = signals[:signals.find('{')]
+            signal_name = signals[:signals.find('{', 1)]
             signal_name = signal_name.replace(' ', '').replace('\n', '').replace('\t', '')
             raw[signal_name] = {}
             signal_data = signals[slice(*self._find_ends(signal_name, signals))]
@@ -166,16 +167,16 @@ class NCFParser:
 
         return raw
 
-
-    def _parse_encoding(self, signal_data):
+    # pylint: disable=no-self-use
+    # This is still part of the overall class
+    def _parse_encoding(self, encoding):
         """
         parses the encoded values for the signal. Shows the message if a logical value or the
         min, max, and init if a physical value
         """
         raw = {}
-        encoding_name = signal_data[signal_data.find('encod'):signal_data.find('{')].split(' ')[1]
-        encoding = signal_data[slice(*self._find_ends('encoding '+encoding_name, signal_data))]
-        encoding = encoding.replace('\t', '').replace('\n', '').replace('};', '')
+        encoding = encoding[encoding.find('{'):]
+        encoding = encoding.replace('\t', '').replace('\n', '').replace('}', '').replace('{', '')
         _type = encoding.split(',')[0].split('_')[0]
         raw['type'] = _type
         encodings = encoding.split(';')
