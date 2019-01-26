@@ -154,16 +154,16 @@ class NCFParser:
         while '{' in signals:
             signal_name = signals[:signals.find('{', 1)]
             signal_name = signal_name.replace(' ', '').replace('\n', '').replace('\t', '')
-            raw[signal_name] = {}
+            raw['signals'][signal_name] = {}
             signal_data = signals[slice(*self._find_ends(signal_name, signals))]
-            raw[signal_name]['encoding'] = self._parse_encoding(signal_data)
+            raw['signals'][signal_name]['encoding'] = self._parse_encoding(signal_data)
             signal_data = signal_data[:signal_data.find('encoding ')]
             signal_data = signal_data.replace('\n', '').replace('\t', '').replace(' ', '')
             for data in signal_data.split(';')[:3]:
                 name, value = data.split('=')[:2]
-                raw[signal_name][name] = value
+                raw['signals'][signal_name][name] = value
             signals = signals[signals.find('}', signals.find('}')+1)+1:]
-            self.signals[signal_name] = raw[signal_name]
+            self.signals[signal_name] = raw['signals'][signal_name]
 
         return raw
 
@@ -232,3 +232,10 @@ class NCFParser:
             'frames' : self.frames,
             'signals' : self.signals}
         return data
+
+"""
+Example use:
+path = path_to_ncf_file
+parser = NCFParser(path)
+parsed_data = parser.get_all()
+"""
